@@ -26,10 +26,10 @@ _PAD_T, _PAD_B = 0.10, 0.10
 
 
 def pinch_position(landmarks):
-    """Midpoint between thumb-tip and index-tip (remapped coords)."""
-    a, b = landmarks[4], landmarks[8]
-    rx = _remap((a.x + b.x) / 2, _PAD_L, 1.0 - _PAD_R)
-    ry = _remap((a.y + b.y) / 2, _PAD_T, 1.0 - _PAD_B)
+    """Thumb-tip position (the primary cursor). Remapped coords."""
+    a = landmarks[4]
+    rx = _remap(a.x, _PAD_L, 1.0 - _PAD_R)
+    ry = _remap(a.y, _PAD_T, 1.0 - _PAD_B)
     return (rx, ry)
 
 

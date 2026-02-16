@@ -41,7 +41,7 @@ WINDOW_HEIGHT = 720
 # Finger smoother
 # ==============================
 class FingerSmoother:
-    def __init__(self, window_size=5):
+    def __init__(self, window_size=9):
         self._thumb = deque(maxlen=window_size)
         self._index = deque(maxlen=window_size)
 

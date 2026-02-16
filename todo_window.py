@@ -138,9 +138,11 @@ class TodoWindow:
     def _add_btn_rect(self, s, win):
         if self._keyboard_open:
             return None
-        bw = max(100, int(180 * s))
-        bh = max(30, int(44 * s))
-        return pygame.Rect(win.right - bw - int(20 * s), win.y + int(8 * s), bw, bh)
+        bw = max(200, int(360 * s))
+        bh = max(60, int(88 * s))
+        bx = win.x + (win.width - bw) // 2
+        by = win.bottom - bh - int(14 * s)
+        return pygame.Rect(bx, by, bw, bh)
 
     # ────────────────────────────────────────────────────────────────
     def draw(self, surface: pygame.Surface, gui_scale: float = 1.0):
@@ -167,8 +169,8 @@ class TodoWindow:
         # + Add button (only when keyboard closed)
         add_btn = self._add_btn_rect(s, win)
         if add_btn:
-            pygame.draw.rect(surface, _GREEN, add_btn, border_radius=max(4, int(8 * s)))
-            albl = _f(max(16, int(28 * s))).render("+ Add Task", True, _WHITE)
+            pygame.draw.rect(surface, _GREEN, add_btn, border_radius=max(6, int(14 * s)))
+            albl = _f(max(28, int(48 * s))).render("+ Add Task", True, _WHITE)
             surface.blit(albl, albl.get_rect(center=add_btn.center))
 
         # Task area
@@ -179,14 +181,15 @@ class TodoWindow:
 
         # How much space for tasks
         if self._keyboard_open:
-            kb_total_h = int(220 * s)
+            kb_total_h = int(320 * s)
             input_h = max(36, int(48 * s))
             avail_h = H - hdr_h - int(8 * s) - kb_total_h - input_h - int(24 * s)
         else:
-            avail_h = H - hdr_h - int(16 * s)
-            # Close hint
+            add_reserve = max(60, int(88 * s)) + int(28 * s)  # button + gap
+            avail_h = H - hdr_h - int(16 * s) - add_reserve
+            # Close hint above the add button
             hint = _f(max(14, int(22 * s))).render("double pinch to close", True, _GRAY)
-            surface.blit(hint, hint.get_rect(centerx=ox + W // 2, bottom=win.bottom - int(8 * s)))
+            surface.blit(hint, hint.get_rect(centerx=ox + W // 2, bottom=win.bottom - add_reserve + int(4 * s)))
 
         max_visible = max(1, int(avail_h / row_h))
 
@@ -248,7 +251,7 @@ class TodoWindow:
         # ── Keyboard section ──
         self._key_rects = []
         if self._keyboard_open:
-            kb_y = win.bottom - int(220 * s)
+            kb_y = win.bottom - int(320 * s)
 
             # Input field
             input_h = max(36, int(48 * s))
@@ -272,9 +275,9 @@ class TodoWindow:
             pygame.draw.rect(surface, (35, 35, 55), kb_rect)
 
             # Draw key rows
-            key_h = max(24, int(36 * s))
-            key_gap = max(2, int(4 * s))
-            row_gap = max(2, int(5 * s))
+            key_h = max(38, int(56 * s))
+            key_gap = max(3, int(5 * s))
+            row_gap = max(3, int(7 * s))
             total_kb_rows = len(_ROWS) + 1  # +1 for special row
 
             cur_y = kb_y + int(6 * s)
@@ -289,7 +292,7 @@ class TodoWindow:
                     kx = start_x + k_idx * (key_w + key_gap)
                     kr = pygame.Rect(kx, cur_y, key_w, key_h)
                     pygame.draw.rect(surface, _KEY_BG, kr, border_radius=max(3, int(6 * s)))
-                    klbl = _f(max(12, int(24 * s))).render(ch, True, _WHITE)
+                    klbl = _f(max(18, int(32 * s))).render(ch, True, _WHITE)
                     surface.blit(klbl, klbl.get_rect(center=kr.center))
                     self._key_rects.append((kr, ch))
 
@@ -306,7 +309,7 @@ class TodoWindow:
                 skw = int(usable_w * sw_frac)
                 sr = pygame.Rect(sx, cur_y, skw, key_h)
                 pygame.draw.rect(surface, scol, sr, border_radius=max(3, int(6 * s)))
-                stxt = _f(max(12, int(22 * s))).render(slbl, True, _WHITE)
+                stxt = _f(max(18, int(30 * s))).render(slbl, True, _WHITE)
                 surface.blit(stxt, stxt.get_rect(center=sr.center))
                 self._key_rects.append((sr, slbl))
                 sx += skw + key_gap

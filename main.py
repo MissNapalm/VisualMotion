@@ -89,17 +89,19 @@ class App:
                     if time.time() - st.pinch_hold_start >= st.pinch_hold_delay:
                         st.scroll_unlocked = True
                 # Pinch-hold 1s to close app windows (generous drift allowance)
+                # Skip if todo keyboard is open (user is typing)
                 if self._any_app_visible and st.pinch_start_pos:
-                    total = math.hypot(px - st.pinch_start_pos[0], py - st.pinch_start_pos[1])
-                    if total <= 80 and time.time() - st.pinch_hold_start >= 1.0:
-                        if self._weather.visible:
-                            self._weather.close()
-                            print("Closed weather window (pinch hold)")
-                        elif self._todo.visible:
-                            self._todo.close()
-                            print("Closed todo window (pinch hold)")
-                        st.reset_pinch()
-                        return
+                    if not (self._todo.visible and self._todo._keyboard_open):
+                        total = math.hypot(px - st.pinch_start_pos[0], py - st.pinch_start_pos[1])
+                        if total <= 80 and time.time() - st.pinch_hold_start >= 1.0:
+                            if self._weather.visible:
+                                self._weather.close()
+                                print("Closed weather window (pinch hold)")
+                            elif self._todo.visible:
+                                self._todo.close()
+                                print("Closed todo window (pinch hold)")
+                            st.reset_pinch()
+                            return
                 # Only scroll when no app window is open
                 if not self._any_app_visible and st.scroll_unlocked and st.pinch_start_pos:
                     total = math.hypot(px - st.pinch_start_pos[0], py - st.pinch_start_pos[1])
@@ -150,9 +152,10 @@ class App:
         if self._double_tap:
             dx, dy = self._double_tap
             if self._todo.visible:
-                # Double-pinch anywhere closes the todo window
-                self._todo.close()
-                print("Closed todo window (double pinch)")
+                # Only close if keyboard is NOT open (rapid typing looks like double-pinch)
+                if not self._todo._keyboard_open:
+                    self._todo.close()
+                    print("Closed todo window (double pinch)")
             elif self._weather.visible:
                 # Double-pinch anywhere closes the weather window
                 self._weather.close()
@@ -211,7 +214,9 @@ class App:
             )
             if not st.wheel_active and pinch_now:
                 pygame.draw.line(screen, (255, 255, 255), (int(tx), int(ty)), (int(ix), int(iy)), 2)
+            # Thumb = primary cursor
             pygame.draw.circle(screen, (255, 255, 255), (int(tx), int(ty)), 8)
+            # Index = secondary
             pygame.draw.circle(screen, (255, 255, 255), (int(ix), int(iy)), 8)
         else:
             st.finger_smoother.reset()
