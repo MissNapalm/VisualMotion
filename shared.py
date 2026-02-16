@@ -159,16 +159,12 @@ class HandState:
         self.pinch_prev = False
         self.last_pinch_time = 0
         self.double_pinch_window = 0.4
+        self.pinch_hold_start = 0          # when current pinch began
+        self.scroll_unlocked = False       # True once held 1.5s
+        self.pinch_hold_delay = 0.45       # seconds before scroll activates
 
         # misc
-        self.browser_process = None
-        self.email_process = None
-        self.maps_process = None
         self.current_fps = 0.0
-
-        # A-OK gesture to reset zoom
-        self.ok_prev = False
-        self.ok_touch_threshold = 0.025
 
 
 # ==============================
@@ -209,18 +205,6 @@ def detect_three_finger_gesture(landmarks):
     ring_fold = landmarks[16].y > landmarks[14].y - 0.02
     pinky_fold = landmarks[20].y > landmarks[18].y - 0.02
     return thumb_ext and index_ext and middle_ext and ring_fold and pinky_fold
-
-
-def detect_ok_gesture(landmarks, touch_thresh=0.025):
-    if not landmarks:
-        return False
-    a = landmarks[4]
-    b = landmarks[8]
-    touching = math.hypot(a.x - b.x, a.y - b.y) < touch_thresh
-    middle_ext = is_finger_extended(landmarks, 12, 10)
-    ring_ext = is_finger_extended(landmarks, 16, 14)
-    pinky_ext = is_finger_extended(landmarks, 20, 18)
-    return touching and middle_ext and ring_ext and pinky_ext
 
 
 def get_hand_center(landmarks):
