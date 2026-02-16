@@ -17,6 +17,8 @@ from state import (
     ROW_BASE_SPACING, CATEGORIES, NUM_CATEGORIES, WINDOW_WIDTH, WINDOW_HEIGHT,
 )
 from renderer import clamp, draw_cards, draw_wheel
+from weather_window import WeatherWindow
+from todo_window import TodoWindow
 
 
 class App:
@@ -32,6 +34,12 @@ class App:
         self._font_status = pygame.font.Font(None, 48)
         self._tap = None
         self._double_tap = None
+        self._weather = WeatherWindow(WINDOW_WIDTH, WINDOW_HEIGHT)
+        self._todo = TodoWindow(WINDOW_WIDTH, WINDOW_HEIGHT)
+
+    @property
+    def _any_app_visible(self):
+        return self._weather.visible or self._todo.visible
 
     def _process_wheel(self, hand):
         st = self.state
@@ -80,7 +88,20 @@ class App:
                 if not st.scroll_unlocked:
                     if time.time() - st.pinch_hold_start >= st.pinch_hold_delay:
                         st.scroll_unlocked = True
-                if st.scroll_unlocked and st.pinch_start_pos:
+                # Pinch-hold 1s to close app windows (generous drift allowance)
+                if self._any_app_visible and st.pinch_start_pos:
+                    total = math.hypot(px - st.pinch_start_pos[0], py - st.pinch_start_pos[1])
+                    if total <= 80 and time.time() - st.pinch_hold_start >= 1.0:
+                        if self._weather.visible:
+                            self._weather.close()
+                            print("Closed weather window (pinch hold)")
+                        elif self._todo.visible:
+                            self._todo.close()
+                            print("Closed todo window (pinch hold)")
+                        st.reset_pinch()
+                        return
+                # Only scroll when no app window is open
+                if not self._any_app_visible and st.scroll_unlocked and st.pinch_start_pos:
                     total = math.hypot(px - st.pinch_start_pos[0], py - st.pinch_start_pos[1])
                     if total > st.movement_threshold:
                         st.card_offset += dx * st.scroll_gain
@@ -99,9 +120,9 @@ class App:
                 now = time.time()
                 dt = now - st.last_pinch_time
                 if total <= st.movement_threshold and not st.scroll_unlocked:
-                    self._tap = (st.last_pinch_x, st.last_pinch_y)
+                    self._tap = st.pinch_start_pos
                     if 0.05 < dt < st.double_pinch_window:
-                        self._double_tap = (st.last_pinch_x, st.last_pinch_y)
+                        self._double_tap = st.pinch_start_pos
                 st.last_pinch_time = now
             st.reset_pinch()
 
@@ -109,43 +130,80 @@ class App:
         st = self.state
         if self._tap:
             tx, ty = self._tap
-            for rect, ci, ca in all_rects:
-                if rect.collidepoint(tx, ty):
-                    name = CATEGORIES[ca][ci]
-                    st.selected_card, st.selected_category = ci, ca
-                    st.zoom_target = 1.0
-                    print(f"Selected: {name} (card {ci}, category {ca})")
-                    break
+            if self._todo.visible:
+                # Pass taps to todo for keyboard/button interaction
+                self._todo.handle_tap(tx, ty, st.gui_scale)
+            elif self._weather.visible:
+                # Single pinch-tap outside the window closes it
+                if not self._weather.hit_test(tx, ty, st.gui_scale):
+                    self._weather.close()
+                    print("Closed weather window")
+            else:
+                for rect, ci, ca in all_rects:
+                    if rect.collidepoint(tx, ty):
+                        name = CATEGORIES[ca][ci]
+                        st.selected_card, st.selected_category = ci, ca
+                        st.zoom_target = 1.0
+                        print(f"Selected: {name} (card {ci}, category {ca})")
+                        break
             self._tap = None
         if self._double_tap:
             dx, dy = self._double_tap
-            for rect, ci, ca in all_rects:
-                if rect.collidepoint(dx, dy):
-                    print(f"Double pinch on {CATEGORIES[ca][ci]}")
-                    break
+            if self._todo.visible:
+                # Double-pinch anywhere closes the todo window
+                self._todo.close()
+                print("Closed todo window (double pinch)")
+            elif self._weather.visible:
+                # Double-pinch anywhere closes the weather window
+                self._weather.close()
+                print("Closed weather window (double pinch)")
+            else:
+                for rect, ci, ca in all_rects:
+                    if rect.collidepoint(dx, dy):
+                        name = CATEGORIES[ca][ci]
+                        if name == "Weather":
+                            self._weather.open()
+                            print("Opened weather window")
+                        elif name == "Reminders":
+                            self._todo.open()
+                            print("Opened todo window")
+                        else:
+                            print(f"Double pinch on {name}")
+                        break
             self._double_tap = None
 
     def _draw(self, hand, pinch_now):
         st = self.state
         screen = self.screen
         screen.fill((20, 20, 30))
-        sm = st.scroll_smoothing
-        st.smooth_card_offset += (st.card_offset - st.smooth_card_offset) * sm
-        st.smooth_category_offset += (st.category_offset - st.smooth_category_offset) * sm
-        cx, cy = WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2
-        row_stride = int(ROW_BASE_SPACING * st.gui_scale)
-        first = max(0, int(-st.smooth_category_offset / row_stride) - 1)
-        last = min(NUM_CATEGORIES, int((-st.smooth_category_offset + WINDOW_HEIGHT) / row_stride) + 2)
+
         all_rects = []
-        for cat in range(first, last):
-            y = cy + cat * row_stride + st.smooth_category_offset
-            all_rects += draw_cards(
-                screen, cx, int(y), st.smooth_card_offset, cat,
-                st.selected_card, st.selected_category, st.zoom_progress,
-                WINDOW_WIDTH, st.gui_scale, CARD_WIDTH, CARD_HEIGHT, CARD_SPACING,
-            )
+        if self._todo.visible:
+            # Todo app is open — no cards, just todo
+            self._todo.draw(screen, st.gui_scale)
+        elif self._weather.visible:
+            # Weather app is open — no cards, just weather
+            self._weather.draw(screen, st.gui_scale)
+        else:
+            # Normal carousel view
+            sm = st.scroll_smoothing
+            st.smooth_card_offset += (st.card_offset - st.smooth_card_offset) * sm
+            st.smooth_category_offset += (st.category_offset - st.smooth_category_offset) * sm
+            cx, cy = WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2
+            row_stride = int(ROW_BASE_SPACING * st.gui_scale)
+            first = max(0, int(-st.smooth_category_offset / row_stride) - 1)
+            last = min(NUM_CATEGORIES, int((-st.smooth_category_offset + WINDOW_HEIGHT) / row_stride) + 2)
+            for cat in range(first, last):
+                y = cy + cat * row_stride + st.smooth_category_offset
+                all_rects += draw_cards(
+                    screen, cx, int(y), st.smooth_card_offset, cat,
+                    st.selected_card, st.selected_category, st.zoom_progress,
+                    WINDOW_WIDTH, st.gui_scale, CARD_WIDTH, CARD_HEIGHT, CARD_SPACING,
+                )
+
         self._resolve_taps(all_rects)
         draw_wheel(screen, st, WINDOW_WIDTH, WINDOW_HEIGHT)
+
         if hand:
             (tx, ty), (ix, iy) = st.finger_smoother.update(
                 lm_to_screen(hand[4], WINDOW_WIDTH, WINDOW_HEIGHT),
@@ -157,17 +215,6 @@ class App:
             pygame.draw.circle(screen, (255, 255, 255), (int(ix), int(iy)), 8)
         else:
             st.finger_smoother.reset()
-        if st.wheel_active:
-            status = f"WHEEL - GUI {st.gui_scale:.2f}x"
-        elif st.is_pinching:
-            if st.scroll_unlocked:
-                status = "SCROLLING"
-            else:
-                remaining = max(0, st.pinch_hold_delay - (time.time() - st.pinch_hold_start))
-                status = f"PINCHED - hold {remaining:.1f}s to scroll"
-        else:
-            status = "Ready - Pinch to select - Hold pinch to scroll"
-        screen.blit(self._font_status.render(status, True, (255, 255, 255)), (30, 30))
         pygame.display.flip()
 
     def run(self):

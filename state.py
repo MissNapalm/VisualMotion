@@ -77,8 +77,8 @@ class HandState:
         self.last_pinch_x = None
         self.last_pinch_y = None
         self.pinch_start_pos = None
-        self.movement_threshold = 10
-        self.pinch_threshold = 0.08
+        self.movement_threshold = 35
+        self.pinch_threshold = 0.06
         self.pinch_prev = False
         self.last_pinch_time = 0
         self.double_pinch_window = 0.4
@@ -103,7 +103,7 @@ class HandState:
         self.gui_scale = 1.00
         self.gui_scale_min = 0.60
         self.gui_scale_max = 1.80
-        self.gui_scale_sensitivity = 0.32
+        self.gui_scale_sensitivity = 0.55
 
         # misc
         self.current_fps = 0.0
