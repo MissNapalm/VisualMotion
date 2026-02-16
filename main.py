@@ -448,10 +448,10 @@ def carousel_main():
     if not cap.isOpened():
         print("ERROR: Could not open camera!")
         return
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
-    hands = mp_hands.Hands(max_num_hands=1, min_detection_confidence=0.5, min_tracking_confidence=0.5, model_complexity=0)
+    hands = mp_hands.Hands(max_num_hands=1, min_detection_confidence=0.3, min_tracking_confidence=0.3, model_complexity=0)
 
     state = HandState()
     tap_to_check = None
@@ -506,11 +506,10 @@ def carousel_main():
             state.current_fps = (0.9 * state.current_fps + 0.1 * fps) if state.current_fps > 0 else fps
 
         right_hand = None
-        if results.multi_hand_landmarks and results.multi_handedness:
-            for hl, hd in zip(results.multi_hand_landmarks, results.multi_handedness):
-                # Frame is mirrored, so real right hand is labeled "Left" by MediaPipe
-                if hd.classification[0].label == "Left":
-                    right_hand = hl.landmark
+        if results.multi_hand_landmarks:
+            # Use the first detected hand — handedness labels are unreliable
+            # especially at screen edges and with mirrored frames
+            right_hand = results.multi_hand_landmarks[0].landmark
 
         if right_hand is None:
             state.finger_smoother.reset()
@@ -925,11 +924,8 @@ def email_fallback_main():
         results = hands.process(rgb)
 
         right_hand = None
-        if results.multi_hand_landmarks and results.multi_handedness:
-            for hl, hd in zip(results.multi_hand_landmarks, results.multi_handedness):
-                # Frame is mirrored, so real right hand is labeled "Left" by MediaPipe
-                if hd.classification[0].label == "Left":
-                    right_hand = hl.landmark
+        if results.multi_hand_landmarks:
+            right_hand = results.multi_hand_landmarks[0].landmark
 
         # gestures
         if right_hand and detect_three_finger_gesture(right_hand):
