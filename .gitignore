@@ -1,0 +1,7 @@
+gesture_env/
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+screenshot_*.png
+hand_landmarker.task
